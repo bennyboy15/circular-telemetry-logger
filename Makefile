@@ -1,6 +1,6 @@
 # Define the compiler and flags
 CC = gcc
-CFLAGS = -Wall -Wextra -Iinclude
+CFLAGS = -Wall -Wextra -Iheaders
 
 # Rules
 all:
