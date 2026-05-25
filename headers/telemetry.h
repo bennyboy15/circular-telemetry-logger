@@ -17,18 +17,3 @@ typedef struct {
     uint8_t system_status; // 1 byte
 } TelemetryPacket;
 #pragma pack(pop)
-
-// ATOMIC RING BUFFER
-#define ATOMIC_BUFFER_SIZE 8
-typedef struct {
-  char arr[ATOMIC_BUFFER_SIZE];
-  atomic_size_t head;
-  atomic_size_t tail;
-} AtomicRingBuff;
-
-AtomicRingBuff *initARB();
-void resetARB(AtomicRingBuff *rb);
-void freeARB(AtomicRingBuff *rb);
-int spaceLeftARB(AtomicRingBuff *rb);
-void writeARB(AtomicRingBuff *rb, char newChar);
-char readARB(AtomicRingBuff *rb);
