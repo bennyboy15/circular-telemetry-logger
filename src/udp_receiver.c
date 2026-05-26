@@ -1,57 +1,53 @@
+#include "udp_receiver.h"
 #include <arpa/inet.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
-#define BUFFER_SIZE 1024
+// INITIALISES A SOCKET TO LISTEN @ SPECIFIED PORT
+int init_udp_receiver(int port) {
 
-#define SOCKETERROR (-1)
-int check(int exp, const char *msg) {
-  if (exp == SOCKETERROR) {
-    perror(msg);
-    exit(EXIT_FAILURE);
-  }
-  return exp;
-}
-
-int main(int argc, char *argv[]) {
-
-  if (argc != 2) {
-    printf("Usage: %s <port>\n", argv[0]);
-    return EXIT_FAILURE;
+  int new_socket = socket(AF_INET, SOCK_DGRAM, 0);
+  if (new_socket < 0) {
+    perror("ERROR: Could not create receiver socket");
+    return -1;
   }
 
-  int my_port = atoi(argv[1]);
-  int udp_recieve_socket;
-  struct sockaddr_in peer_addr;
   struct sockaddr_in my_addr = {.sin_family = AF_INET,
                                 .sin_addr.s_addr = INADDR_ANY,
-                                .sin_port = htons(my_port)};
+                                .sin_port = htons(port)};
 
-  char buffer[BUFFER_SIZE];
-
-  if ((udp_recieve_socket = socket(AF_INET, SOCK_DGRAM, 0)) <= 0) {
-    perror("ERROR: Failed to create recieve socket");
-    return EXIT_FAILURE;
+  if (bind(new_socket, (struct sockaddr *)&my_addr, sizeof(my_addr)) < 0) {
+    perror("ERROR: Could not bind socket to port");
+    close(new_socket);
+    return -1;
   }
 
-  // BIND SOCKET TO ADDRESS/PORT
-  int result =
-      bind(udp_recieve_socket, (struct sockaddr *)&my_addr, sizeof(my_addr));
-  check(result, "ERROR: Could not bind socket to address");
+  return new_socket;
+}
 
-  // RECEIVE!
-  socklen_t address_length = sizeof(peer_addr);
-  int bytes_received = recvfrom(udp_recieve_socket, buffer, BUFFER_SIZE, 0,
-                                (struct sockaddr *)&peer_addr, &address_length);
-  check(bytes_received, "ERROR: Failed to recieve bytes");
+//
+int receive_telemetry_packet(int socket_fd, TelemetryPacket *packet,
+                             struct sockaddr_in *sender_addr) {
 
-  printf("SUCCESS: Recieved a packet from %s:%d -- Message = %s\n",
-         inet_ntoa(peer_addr.sin_addr), ntohs(peer_addr.sin_port), buffer);
+  socklen_t addr_len = sizeof(struct sockaddr_in);
 
-  close(udp_recieve_socket);
+  ssize_t bytes_received =
+      recvfrom(socket_fd, packet, sizeof(TelemetryPacket), 0,
+               (struct sockaddr *)sender_addr, &addr_len);
 
-  return EXIT_SUCCESS;
+  if (bytes_received < 0) {
+    perror("ERROR: Network read failure");
+    return -1;
+  }
+
+  if (bytes_received != sizeof(TelemetryPacket)) {
+    printf("WARNING: Fragmented packet dropped! Received %zd bytes, expected "
+           "%zd.\n",
+           bytes_received, sizeof(TelemetryPacket));
+    return 0;
+  }
+
+  return 1;
 }
