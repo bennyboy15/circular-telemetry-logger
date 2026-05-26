@@ -1,6 +1,10 @@
 #include "telemetry.h"
+#include "udp_sender.h"
+#include <arpa/inet.h>
+#include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/socket.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -38,6 +42,16 @@ int main() {
   uint32_t current_id = 1;
   TelemetryPacket tp;
 
+  // UDP SETUP
+  int udp_socket = socket(AF_INET, SOCK_DGRAM, 0);
+  struct sockaddr_in peer_adr = {
+      .sin_family = AF_INET, // Socket Internet Family AF_INET = IPv4 address
+                             // family, can use AF_INET6 for IPv6
+      .sin_port =
+          htons(5000) // Socket Internet Port htons = Host to Network Short
+  };
+  inet_pton(AF_INET, "127.0.0.1", &(peer_adr.sin_addr));
+
   while (1) {
     // FILL PACKET WITH RANDOM DATA
     generate_random_packet(&tp, current_id);
@@ -45,13 +59,14 @@ int main() {
     printf("SENDING PACKET: #%u | Alt: %.2fm | Lat: %.4f\n", tp.packet_id,
            tp.altitude_m, tp.latitude);
 
+    // SEND UDP PACKET
+    send_telemetry_packet(udp_socket, &peer_adr, &tp);
     current_id++;
-
-    // TODO: SEND PACKET VIA UDP
 
     // PAUSE FOR 100 MILLISECONDS
     usleep(100000);
   }
-
+  // CLOSE UDP SOCKET ONCE DONE WITH IT
+  close(udp_socket);
   return 0;
 }
